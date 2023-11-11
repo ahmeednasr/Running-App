@@ -6,4 +6,5 @@
     </style>
 
     <style name="Theme.RunningApp" parent="Base.Theme.RunningApp" />
+    <style name="Theme.BottomNavigationBar" parent="Base.Theme.RunningApp" />
 </resources>
