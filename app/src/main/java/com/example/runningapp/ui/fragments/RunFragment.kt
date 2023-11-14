@@ -38,7 +38,6 @@ class RunFragment : Fragment(), EasyPermissions.PermissionCallbacks {
         requestPermissions()
         binding.fab.setOnClickListener {
             findNavController().navigate(RunFragmentDirections.actionRunFragmentToTrackingFragment())
-            //findNavController().navigate(RunFragmentDirections.actionRunFragmentToStatisticsFragment())
         }
     }
 
@@ -73,7 +72,7 @@ class RunFragment : Fragment(), EasyPermissions.PermissionCallbacks {
 
     override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
         if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
-            AppSettingsDialog.Builder(this).build().show()
+            AppSettingsDialog.Builder(this) .build().show()
         } else {
             requestPermissions()
         }
