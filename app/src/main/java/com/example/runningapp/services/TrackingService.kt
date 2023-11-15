@@ -25,6 +25,7 @@ import com.example.runningapp.Constants.LOCATION_UPDATE_INTERVAL
 import com.example.runningapp.Constants.NOTIFICATION_CHANNEL_ID
 import com.example.runningapp.Constants.NOTIFICATION_CHANNEL_NAME
 import com.example.runningapp.Constants.NOTIFICATION_ID
+import com.example.runningapp.Constants.TIMER_UPDATE_INTERVAL
 import com.example.runningapp.R
 import com.example.runningapp.ui.MainActivity
 import com.example.runningapp.util.TrackingUtility
@@ -35,16 +36,22 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 typealias PolyLine = MutableList<LatLng>
 typealias PolyLines = MutableList<PolyLine>
 
 class TrackingService : LifecycleService() {
-    private var isFirstRun = true
+    var isFirstRun = true
     lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private val timeRunInSeconds = MutableLiveData<Long>()
 
     companion object {
+        val timeRunInMillis = MutableLiveData<Long>()
         val isTracking = MutableLiveData<Boolean>()
         val pathPoints = MutableLiveData<PolyLines>()
     }
@@ -52,16 +59,18 @@ class TrackingService : LifecycleService() {
     private fun postInitialValues() {
         isTracking.postValue(false)
         pathPoints.postValue(mutableListOf())
+        timeRunInSeconds.postValue(0L)
+        timeRunInMillis.postValue(0L)
     }
 
     override fun onCreate() {
         super.onCreate()
         postInitialValues()
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-        isTracking.observe(this, Observer {
-            Timber.d("isTracking=$isTracking")
+        isTracking.observe(this) {
+            Timber.d("isTracking=${isTracking.value}")
             updateLocationTracking(it)
-        })
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -74,7 +83,7 @@ class TrackingService : LifecycleService() {
                         isFirstRun = false
                     } else {
                         Timber.d("Resume Service")
-                        startForegroundService()
+                        startTimer()
                     }
                 }
 
@@ -91,31 +100,58 @@ class TrackingService : LifecycleService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
+    private var isTimerEnable = false
+    private var lapTime = 0L
+    private var timeRun = 0L
+    private var timeStarted = 0L
+    private var lastSecondTimestamp = 0L
+    private fun startTimer() {
+        addEmptyPolyLine()
+        isTracking.postValue(true)
+        timeStarted = System.currentTimeMillis()
+        isTimerEnable = true
+        CoroutineScope(Dispatchers.Main).launch {
+            while (isTracking.value!!) {
+                //time difference between now and timeStarted
+                lapTime = System.currentTimeMillis() - timeStarted
+                //post the new lapTime
+                timeRunInMillis.postValue(timeRun + lapTime)
+                if (timeRunInMillis.value!! >= lastSecondTimestamp + 1000L) {
+                    timeRunInSeconds.postValue(timeRunInSeconds.value!! + 1)
+                    lastSecondTimestamp += 1000L
+                }
+                delay(TIMER_UPDATE_INTERVAL)
+            }
+            timeRun += lapTime
+        }
+
+    }
+
+    /**
+     * using this function to pauseService
+     * and post false to isTracking liveData
+     */
     private fun pauseService() {
         isTracking.postValue(false)
+        isTimerEnable = false
     }
 
-    private fun addPathPoint(location: Location?) {
-        location?.let {
-            val pos = LatLng(location.latitude, location.longitude)
-            pathPoints.value?.apply {
-                last().add(pos)
-                pathPoints.postValue(this)
-            }
-        }
-    }
-
+    /**
+     * to update location when tracking is work
+     * and stop location tracking when isTracking = false
+     */
     @SuppressLint("MissingPermission")
     private fun updateLocationTracking(isTracking: Boolean) {
+
         if (isTracking) {
             if (TrackingUtility.hasLocationPermissions(this)) {
-                val requist = LocationRequest().apply {
+                val request = LocationRequest().apply {
                     interval = LOCATION_UPDATE_INTERVAL
                     fastestInterval = FASTEST_LOCATION_INTERVAL
                     priority = PRIORITY_HIGH_ACCURACY
                 }
                 fusedLocationProviderClient.requestLocationUpdates(
-                    requist, locationCallBack,
+                    request, locationCallBack,
                     Looper.getMainLooper()
                 )
             }
@@ -124,7 +160,7 @@ class TrackingService : LifecycleService() {
         }
     }
 
-    val locationCallBack = object : LocationCallback() {
+    private val locationCallBack = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             super.onLocationResult(result)
             if (isTracking.value!!) {
@@ -138,13 +174,24 @@ class TrackingService : LifecycleService() {
         }
     }
 
+    private fun addPathPoint(location: Location?) {
+        location?.let {
+            val pos = LatLng(location.latitude, location.longitude)
+            pathPoints.value?.apply {
+                last().add(pos)
+                pathPoints.postValue(this)
+            }
+        }
+    }
+
     private fun addEmptyPolyLine() = pathPoints.value?.apply {
         add(mutableListOf())
         pathPoints.postValue(this)
     } ?: pathPoints.postValue(mutableListOf(mutableListOf()))
 
+
     private fun startForegroundService() {
-        addEmptyPolyLine()
+        startTimer()
         isTracking.postValue(true)
 
         val notificationManager =

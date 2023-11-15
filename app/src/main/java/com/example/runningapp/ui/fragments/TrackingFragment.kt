@@ -18,6 +18,7 @@ import com.example.runningapp.databinding.FragmentTrackingBinding
 import com.example.runningapp.services.PolyLine
 import com.example.runningapp.services.TrackingService
 import com.example.runningapp.ui.viewmodels.MainViewModel
+import com.example.runningapp.util.TrackingUtility
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.PolylineOptions
@@ -31,6 +32,7 @@ class TrackingFragment : Fragment() {
     private var map: GoogleMap? = null
     private var isTracking = false
     private var pathPoints = mutableListOf<PolyLine>()
+    private var curTimeMillis = 0L
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,15 +48,7 @@ class TrackingFragment : Fragment() {
         binding.mapView.onCreate(savedInstanceState)
         binding.btnToggleRun.setOnClickListener {
             toggleRun()
-            //binding.btnToggleRun.visibility = View.GONE
-           // sendCommandToService(ACTION_START_OR_RESUME_SERVICE)
-          //  binding.btnFinishRun.visibility = View.VISIBLE
         }
-//        binding.btnFinishRun.setOnClickListener {
-//            binding.btnFinishRun.visibility = View.GONE
-//            sendCommandToService(ACTION_STOP_SERVICE)
-//            binding.btnToggleRun.visibility = View.VISIBLE
-//        }
         binding.mapView.getMapAsync {
             map = it
             addAllPolyLine()
@@ -74,15 +68,19 @@ class TrackingFragment : Fragment() {
     }
 
     private fun subscribeToObservers() {
-        TrackingService.isTracking.observe(viewLifecycleOwner, Observer {
+        TrackingService.isTracking.observe(viewLifecycleOwner) {
             updateTracking(it)
-        })
-        TrackingService.pathPoints.observe(viewLifecycleOwner, Observer {
+        }
+        TrackingService.pathPoints.observe(viewLifecycleOwner) {
             pathPoints = it
             addLatestPolyline()
             moveCameraToUser()
-
-        })
+        }
+        TrackingService.timeRunInMillis.observe(viewLifecycleOwner) {
+            curTimeMillis = it
+            var formattedTime = TrackingUtility.getFormattedStopWatchTime(curTimeMillis, true)
+            binding.tvTimer.text=formattedTime
+        }
     }
 
     private fun toggleRun() {
