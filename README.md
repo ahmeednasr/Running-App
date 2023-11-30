@@ -11,22 +11,16 @@ Running App is an Android application designed to empower users in achieving the
 - **Statistics and Insights**: Gain valuable insights into your performance with detailed statistics, including distance covered, pace, calories burned, and more.
 - **Interactive Maps**: Utilize the power of Google Maps SDK to explore and plan your running routes. View interactive maps with key markers and checkpoints.
 - **Background Service**: Keep your running sessions uninterrupted with our efficient background service that continues tracking even when the app is in the background.
-## Dependencies
 
-This project uses the following dependencies:
-
-### Dependency Injection
-
-- [Dagger Hilt]
-
-### Architecture Components
-
-- [LiveData]
-
-### Maps Integration
-
-- [Google Maps SDK]
-
-### Background Services
-
-- [Android LifecycleService]
+## Technologies and Libraries Used
+- Dependency Injection [Dagger Hilt]
+- architecture pattern[MVVM]
+- Architecture Components [LiveData]
+- Maps Integration[Google Maps SDK]
+- Background Services[Android LifecycleService]
+- local data storage[Room]
+- Repository Pattern: For separating data storage and access from the rest of the app
+- Navigation Component
+- MpAndroidChart
+- Easy Permissions
+  
