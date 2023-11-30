@@ -76,7 +76,6 @@ class SettingsFragment : Fragment() {
             .apply()
         val toolbarText = "Let's go $nameText"
         (requireActivity() as AppCompatActivity).findViewById<TextView>(R.id.tvToolbarTitle).text = toolbarText
-
         return true
     }
 
